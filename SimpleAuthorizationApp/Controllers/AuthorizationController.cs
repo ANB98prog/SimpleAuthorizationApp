@@ -1,4 +1,7 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace SimpleAuthorizationApp.Authorize
 {
@@ -6,12 +9,19 @@ namespace SimpleAuthorizationApp.Authorize
     [Route("[controller]")]
     public class AuthorizationController
     {
+        private HttpContext? _context;
+
         private List<Person> _persons = new List<Person>()
         {
             new Person("alex@gmail.com", "password"),
             new Person("tom@gmail.com", "tomspassword"),
             new Person("hulio@gmail.com", "huli")
         };
+
+        public AuthorizationController(IHttpContextAccessor contextAccessor)
+        {            
+            _context = contextAccessor.HttpContext;
+        }
 
         [HttpGet("data")]
         public string Data()
@@ -20,7 +30,7 @@ namespace SimpleAuthorizationApp.Authorize
         }
 
         [HttpPost("login")]
-        public IResult Login(Person personData)
+        public async Task<IResult> Login([FromQuery] string? returnUrl, [FromBody] Person personData)
         {
             if (personData is null)
                 return Results.BadRequest("Login data is empty!");
@@ -35,10 +45,20 @@ namespace SimpleAuthorizationApp.Authorize
             if (user is null)
                 return Results.Unauthorized();
 
-            var token = JwtTokenCreator.CreateToken(user.Email);
+            var claims = new List<Claim> { new Claim(ClaimTypes.Name, personData.Email) };
+            ClaimsIdentity claimsIdentity = new ClaimsIdentity(claims, "Cookies");
 
-            return Results.Json(new PersonLoginResponse(user.Email, token));
+            await _context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity));
+
+            return Results.Ok(new { Email = personData.Email });
             
+        }
+
+        [HttpGet("logout")]
+        public async Task<IResult> Logout()
+        {
+            await _context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return Results.Redirect("/authorization/login");
         }
 
         public record Person(string Email, string Password);

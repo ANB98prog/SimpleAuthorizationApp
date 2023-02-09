@@ -27,7 +27,6 @@
         <input type="submit" id="getData" value="Получить данные" />
     </p>
     <script>
-        var tokenKey = "accessToken";
         // При нажатии на кнопку отправляем данные для получения токена
         document.getElementById("submitLogin").addEventListener("click", async e => {
             e.preventDefault();
@@ -42,12 +41,11 @@
             //Если все норм
             if(response.ok === true){
                 const data = await response.json();
+
                 // Изменяем видимость блоков
-                document.getElementById("userName").innerText = data.username;
+                document.getElementById("userName").innerText = data.value.email;
                 document.getElementById("userInfo").style.display = "block";
                 document.getElementById("loginForm").style.display = "none";
-                // Сохраняем токен в хранилище
-                sessionStorage.setItem(tokenKey, data.value.jwtToken);
             }
             else
             {
@@ -57,14 +55,11 @@
         
         document.getElementById("getData").addEventListener("click", async e => {
             e.preventDefault();
-            //Получаем токен из хранилища
-            const token = sessionStorage.getItem(tokenKey);
-
+            
             const response = await fetch("/weatherforecast", {
                 method: "GET",
                 headers: {
                     "Accept" : "application/json",
-                    "Authorization": "Bearer " + token
                 }
             });
 
@@ -74,17 +69,22 @@
             }
             else
             {
-                console.log("Status: ", response.status);
+                alert("Not permitted!");
             }
         });
         
         // Выход из системы
-        document.getElementById("logOut").addEventListener("click", e => {
+        document.getElementById("logOut").addEventListener("click", async e => {
             e.preventDefault();
             document.getElementById("userName").innerText = "";
             document.getElementById("userInfo").style.display = "none";
             document.getElementById("loginForm").style.display = "block";
-            sessionStorage.removeItem(tokenKey);
+
+            await fetch("/authorization/logout", {
+                method: "GET",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+            });
+
         });
     </script>
 </body>
